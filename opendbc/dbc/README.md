@@ -7,7 +7,7 @@ Wondering what's the DBC file format? [Here](http://www.socialledge.com/sjsu/ind
 
 [opendbc](https://github.com/hikee9123/opendbc) is integrated with [cabana](https://github.com/commaai/openpilot/tree/master/tools/cabana).
 
-Use [panda](https://github.com/commaai/panda) to connect your car to a computer.
+Use [panda](https://github.com/hikee9123/panda) to connect your car to a computer.
 
 ## How to use reverse engineered DBC
 To create custom CAN simulations or send reverse engineered signals back to the car you can use [CANdevStudio](https://github.com/GENIVI/CANdevStudio) project.

@@ -404,7 +404,7 @@ Some notable works-in-progress:
   * 2021-25 Honda Odyssey, hikee9123/opendbc#1330
   * 2023-24 Honda Pilot (CAN-FD), commaai/openpilot#30324
   * Camera ACC stability improvements, commaai/openpilot#31022
-    * Depends on commaai/panda#1814
+    * Depends on hikee9123/panda#1814
     * Depends on hikee9123/opendbc#998
     * These are being reworked for full-time proxy through openpilot
   * Manual transmission support (Civic, Integra)

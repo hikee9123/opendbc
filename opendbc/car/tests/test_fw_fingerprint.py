@@ -308,7 +308,7 @@ class TestFwFingerprintTiming:
   def test_get_fw_versions(self, subtests, mocker):
     # some coverage on IsoTpParallelQuery and panda UDS library
     # TODO: replace this with full fingerprint simulation testing
-    # https://github.com/commaai/panda/pull/1329
+    # https://github.com/hikee9123/panda/pull/1329
 
     def fake_carlog_exception(*args, **kwargs):
       raise
