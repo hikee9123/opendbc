@@ -22,7 +22,7 @@ jobs:
 
     # Check PR target branch
     - name: check branch
-      uses: Vankka/pr-target-branch-action@a7499e5f32a333dec4b25d2bf3eaf493e760dde6
+      uses: Vankka/pr-target-branch-action@v1
       if: github.repository == 'hikee9123/opendbc'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
