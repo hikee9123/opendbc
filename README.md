@@ -36,7 +36,7 @@ Everything you need to know to use, contribute, and extend opendbc are in these 
 ## Quick start
 
 ```bash
-git clone https://github.com/commaai/opendbc.git
+git clone https://github.com/hikee9123/opendbc.git
 cd opendbc
 
 # you probably just want to use this. it's an all-in-one for dependency
@@ -107,7 +107,7 @@ Short term
 - [ ] 100% type coverage
 - [ ] 100% line coverage
 - [ ] Make car ports easier: refactors, tools, tests, and docs
-- [ ] Expose the state of all supported cars better: https://github.com/commaai/opendbc/issues/1144
+- [ ] Expose the state of all supported cars better: https://github.com/hikee9123/opendbc/issues/1144
 
 Longer term
 - [ ] Extend support to every car with LKAS + ACC interfaces
@@ -128,7 +128,7 @@ Safety modes optionally support `controls_allowed`, which allows or blocks a sub
 The opendbc safety firmware is written for its use in conjunction with [openpilot](https://github.com/commaai/openpilot) and [panda](https://github.com/commaai/panda). The safety firmware, through its safety model, provides and enforces the
 [openpilot safety](https://github.com/commaai/openpilot/blob/master/docs/SAFETY.md). Due to its critical function, it's important that the application code rigor within the `safety` folder is held to high standards.
 
-These are the [CI regression tests](https://github.com/commaai/opendbc/actions) we have in place:
+These are the [CI regression tests](https://github.com/hikee9123/opendbc/actions) we have in place:
 * A generic static code analysis is performed by [cppcheck](https://github.com/danmar/cppcheck/).
 * In addition, [cppcheck](https://github.com/danmar/cppcheck/) has a specific addon to check for [MISRA C:2012](https://misra.org.uk/) violations. See [current coverage](opendbc/safety/tests/misra/coverage_table).
 * Compiler options are relatively strict: the flags `-Wall -Wextra -Wstrict-prototypes -Werror` are enforced.
@@ -155,7 +155,7 @@ In addition to the standard bounties, we also offer higher value bounties for mo
 
 ***Which cars are supported?*** See the [supported cars list](docs/CARS.md).
 
-***Can I add support for my car?*** Yes, most car support comes from the community. Read the guide [here](https://github.com/commaai/opendbc/blob/docs/README.md#how-to-port-a-car).
+***Can I add support for my car?*** Yes, most car support comes from the community. Read the guide [here](https://github.com/hikee9123/opendbc/blob/docs/README.md#how-to-port-a-car).
 
 ***Which cars can be supported?*** Any car with LKAS and ACC. More info [here](https://github.com/commaai/openpilot/blob/master/docs/CARS.md#dont-see-your-car-here).
 

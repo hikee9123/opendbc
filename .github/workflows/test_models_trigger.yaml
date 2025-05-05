@@ -56,5 +56,5 @@ jobs:
         branch: test_models_${{ github.event.issue.number }}
         base: master
         delete-branch: true
-        body: 'Testing some opendbc changes from https://github.com/commaai/opendbc/pull/${{ github.event.issue.number }}'
+        body: 'Testing some opendbc changes from https://github.com/hikee9123/opendbc/pull/${{ github.event.issue.number }}'
         labels: bot

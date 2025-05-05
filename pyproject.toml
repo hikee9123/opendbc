@@ -7,7 +7,7 @@ authors = [{ name = "Vehicle Researcher", email = "user@comma.ai" }]
 readme = "README.md"
 requires-python = ">=3.9,<3.13"  # pycapnp doesn't work with 3.13
 
-urls = { "homepage" = "https://github.com/commaai/opendbc" }
+urls = { "homepage" = "https://github.com/hikee9123/opendbc" }
 
 # setuptools includes distutils which is needed by Cython and pre-commit.
 # distutils was removed in python3.12 from the standard library.

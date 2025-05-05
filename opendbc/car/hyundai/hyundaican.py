@@ -172,7 +172,7 @@ def create_acc_commands(packer, enabled, accel, upper_jerk, idx, hud_control, se
   # On Camera SCC cars, FCA11 is not disabled, so we forward stock FCA11 back to the car forward hooks
   if use_fca and not (CP.flags & HyundaiFlags.CAMERA_SCC):
     # note that some vehicles most likely have an alternate checksum/counter definition
-    # https://github.com/commaai/opendbc/commit/9ddcdb22c4929baf310295e832668e6e7fcfa602
+    # https://github.com/hikee9123/opendbc/commit/9ddcdb22c4929baf310295e832668e6e7fcfa602
     fca11_values = {
       "CR_FCA_Alive": idx % 0xF,
       "PAINT1_Status": 1,
