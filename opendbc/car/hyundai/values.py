@@ -175,7 +175,7 @@ class CAR(Platforms):
       HyundaiCarDocs("Hyundai Azera Hybrid 2020", "All", car_parts=CarParts.common([CarHarness.hyundai_k])),
     ],
     CarSpecs(mass=1675, wheelbase=2.885, steerRatio=14.5),
-    flags=HyundaiFlags.HYBRID,
+    flags=HyundaiFlags.HYBRID | HyundaiFlags.MANDO_RADAR,  #custom
   )
   HYUNDAI_ELANTRA = HyundaiPlatformConfig(
     [
