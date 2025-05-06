@@ -14,6 +14,7 @@ enum {
   HYUNDAI_BTN_NONE = 0,
   HYUNDAI_BTN_RESUME = 1,
   HYUNDAI_BTN_SET = 2,
+  HYUNDAI_BTN_GAP = 3,
   HYUNDAI_BTN_CANCEL = 4,
 };
 
@@ -104,9 +105,9 @@ void hyundai_common_cruise_buttons_check(const int cruise_button, const bool mai
     }
 
     // exit controls on cancel press
-    if (cruise_button == HYUNDAI_BTN_CANCEL) {
-      controls_allowed = false;
-    }
+    //if (cruise_button == HYUNDAI_BTN_CANCEL) {
+    //  controls_allowed = false;
+    //}
 
     cruise_button_prev = cruise_button;
   }
