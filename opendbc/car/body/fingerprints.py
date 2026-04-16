@@ -4,8 +4,6 @@ from opendbc.car.body.values import CAR
 
 Ecu = CarParams.Ecu
 
-# debug ecu fw version is the git hash of the firmware
-
 
 FINGERPRINTS = {
   CAR.COMMA_BODY_V1: [{
@@ -23,6 +21,7 @@ FW_VERSIONS = {
       b'0.3.00a',
       b'02/27/2022',
     ],
+    # debug ecu fw version is the git hash of the firmware
     (Ecu.debug, 0x721, None): [
       b'166bd860',
       b'dc780f85',

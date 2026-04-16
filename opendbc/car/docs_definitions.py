@@ -364,7 +364,7 @@ class CarDocs:
 
     else:
       from opendbc.car.body.values import CAR
-      if CP.carFingerprint in (CAR.COMMA_BODY_V1, CAR.COMMA_BODY_V1):
+      if CP.carFingerprint in (CAR.COMMA_BODY_V1, CAR.COMMA_BODY_V2):
         return "The body is a robotics dev kit that can run openpilot. <a href='https://www.commabody.com' target='_blank' class='highlight'>Learn more.</a>"
       else:
         raise Exception(f"This notCar does not have a detail sentence: {CP.carFingerprint}")
