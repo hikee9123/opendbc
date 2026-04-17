@@ -25,7 +25,7 @@ class CarController(CarControllerBase):
 
     if CC.enabled:
       v_setpoint = CC.actuators.accel / 4.0
-      w_setpoint = -CC.actuators.torque / 2.
+      w_setpoint = (-1 if self.params.FLIP_Y else 1) * CC.actuators.torque / 2.
 
       user_wants_to_move = (abs(w_setpoint) > 0.01 or abs(v_setpoint) > 0.01)
       robot_is_stopped = (abs(v_setpoint) < 0.05 and abs(w_setpoint) < 0.05)

@@ -24,12 +24,11 @@ class CarControllerParams:
     self.SPEED_FROM_RPM = 0.008644
 
     self.MAX_SPEED = 1 # m/s
-    self.MAX_TURN = 0.75 # m/s
     self.MAX_POS_INTEGRATOR = 1
 
     # body v1 is torque control, body v2 is speed control
     if CP.carFingerprint in CAR.COMMA_BODY_V1:
-      self.SPEED_FROM_RPM = self.SPEED_FROM_RPM # v1 firmware RPM is unscaled
+      self.MAX_TURN = 0.75 # m/s
       self.CONTROL_BUS = 0
       self.MAX_TORQUE = 700
       self.MAX_TORQUE_RATE = 70
@@ -45,6 +44,7 @@ class CarControllerParams:
           "k_d": 0,
       }
     elif CP.carFingerprint in CAR.COMMA_BODY_V2:
+      self.MAX_TURN = 1 # m/s
       self.CONTROL_BUS = 2
       self.MAX_TORQUE = 1000
       self.MAX_TORQUE_RATE = 250
