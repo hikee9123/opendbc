@@ -24,7 +24,7 @@ class CarControllerParams:
     self.SPEED_FROM_RPM = 0.008644
 
     self.MAX_SPEED = 1 # m/s
-    self.MAX_TURN = 1 # m/s
+    self.MAX_TURN = 0.75 # m/s
     self.MAX_POS_INTEGRATOR = 1
 
     # body v1 is torque control, body v2 is speed control
@@ -35,14 +35,14 @@ class CarControllerParams:
       self.MAX_TORQUE_RATE = 70
       self.FLIP_Y = True # flip sign of differential wheel speed
       self.v_pid_settings = {
-        "k_p": 0.6 * self.MAX_TORQUE_RATE,
-        "k_i": 0.6 * self.MAX_TORQUE_RATE,
-        "k_d": 0.0 * self.MAX_TORQUE_RATE,
+        "k_p": 110,
+        "k_i": 11.5,
+        "k_d": 0.0,
       }
       self.w_pid_settings = {
-          "k_p": [[0, self.MAX_SPEED], [0.6 * self.MAX_TORQUE_RATE, 0.1 * self.MAX_TORQUE_RATE]],
-          "k_i": [[0, self.MAX_SPEED], [0.6 * self.MAX_TORQUE_RATE, 0.1 * self.MAX_TORQUE_RATE]],
-          "k_d": [[0, self.MAX_SPEED], [0.0 * self.MAX_TORQUE_RATE, 0.0 * self.MAX_TORQUE_RATE]],
+          "k_p": 150,
+          "k_i": 15,
+          "k_d": 0,
       }
     elif CP.carFingerprint in CAR.COMMA_BODY_V2:
       self.CONTROL_BUS = 2
