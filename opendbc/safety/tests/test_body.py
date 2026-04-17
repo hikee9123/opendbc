@@ -8,7 +8,15 @@ from opendbc.safety.tests.common import CANPackerSafety
 
 
 class TestBodyBase(common.SafetyTest):
+  TX_MSGS = [[0x250, 0], [0x251, 0], [0x1, 0],
+             [0x250, 2], [0x251, 2], [0x1, 2]]
   FWD_BUS_LOOKUP = {}
+
+  def setUp(self):
+    self.packer = CANPackerSafety("comma_body")
+    self.safety = libsafety_py.libsafety
+    self.safety.set_safety_hooks(CarParams.SafetyModel.body, 0)
+    self.safety.init_tests()
 
   def _motors_data_msg(self, speed_l, speed_r):
     values = {"SPEED_L": speed_l, "SPEED_R": speed_r}
@@ -49,27 +57,11 @@ class TestBodyBase(common.SafetyTest):
 
 
 class TestBodyV1(TestBodyBase):
-  TX_MSGS = [[0x250, 0], [0x251, 0],
-             [0x1, 0], [0x1, 1], [0x1, 3]]
   BUS = 0
-
-  def setUp(self):
-    self.packer = CANPackerSafety("comma_body")
-    self.safety = libsafety_py.libsafety
-    self.safety.set_safety_hooks(CarParams.SafetyModel.body, 0)
-    self.safety.init_tests()
 
 
 class TestBodyV2(TestBodyBase):
-  TX_MSGS = [[0x250, 2], [0x251, 2],
-             [0x1, 1], [0x1, 2], [0x1, 3]]
   BUS = 2
-
-  def setUp(self):
-    self.packer = CANPackerSafety("comma_body")
-    self.safety = libsafety_py.libsafety
-    self.safety.set_safety_hooks(CarParams.SafetyModel.body, 1)
-    self.safety.init_tests()
 
 
 if __name__ == "__main__":

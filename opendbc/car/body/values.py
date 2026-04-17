@@ -5,6 +5,10 @@ from opendbc.car.fw_query_definitions import FwQueryConfig, Request, StdQueries
 
 Ecu = CarParams.Ecu
 
+# RPM * (pi * diameter (~6.5 inches) / 60)
+SPEED_FROM_RPM = 0.008644
+
+
 class CAR(Platforms):
   COMMA_BODY_V1 = PlatformConfig(
     [CarDocs("comma body", package="All", video="https://youtu.be/VT-i3yRsX2s?t=2736")],
@@ -20,9 +24,6 @@ class CAR(Platforms):
 
 class CarControllerParams:
   def __init__(self, CP):
-    # speed = RPM * (pi * diameter (~6.5 inches) / 60)
-    self.SPEED_FROM_RPM = 0.008644
-
     self.MAX_SPEED = 1 # m/s
     self.MAX_POS_INTEGRATOR = 1
 
