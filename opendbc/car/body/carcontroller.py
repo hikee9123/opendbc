@@ -4,7 +4,7 @@ from opendbc.can import CANPacker
 from opendbc.car import Bus, DT_CTRL
 from opendbc.car.common.pid import PIDController
 from opendbc.car.body import bodycan
-from opendbc.car.body.values import CarControllerParams
+from opendbc.car.body.values import CarControllerParams, SPEED_FROM_RPM
 from opendbc.car.interfaces import CarControllerBase
 
 class CarController(CarControllerBase):
@@ -41,13 +41,13 @@ class CarController(CarControllerBase):
         self.w_setpoint =0
         self.w_pid.reset()
 
-      v_measured = self.params.SPEED_FROM_RPM * (CS.out.wheelSpeeds.fl + CS.out.wheelSpeeds.fr) / 2.
+      v_measured = SPEED_FROM_RPM * (CS.out.wheelSpeeds.fl + CS.out.wheelSpeeds.fr) / 2.
       v_error = v_setpoint - v_measured
       freeze_v_integrator = ((v_error < 0 and self.v_pid.error_integral <= -self.params.MAX_POS_INTEGRATOR) or
                             (v_error > 0 and self.v_pid.error_integral >= self.params.MAX_POS_INTEGRATOR))
       v_torque = self.v_pid.update(v_error, freeze_integrator=freeze_v_integrator)
 
-      w_measured = self.params.SPEED_FROM_RPM * (CS.out.wheelSpeeds.fl - CS.out.wheelSpeeds.fr)
+      w_measured = SPEED_FROM_RPM * (CS.out.wheelSpeeds.fl - CS.out.wheelSpeeds.fr)
       w_error = w_measured - w_setpoint
       freeze_w_integrator = ((w_error < 0 and self.w_pid.error_integral <= -self.params.MAX_POS_INTEGRATOR) or
                             (w_error > 0 and self.w_pid.error_integral >= self.params.MAX_POS_INTEGRATOR))
