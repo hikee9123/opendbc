@@ -33,7 +33,7 @@ class CarControllerParams:
       self.CONTROL_BUS = 0
       self.MAX_TORQUE = 700
       self.MAX_TORQUE_RATE = 70
-      self.FLIP_Y = True # flip sign of differential wheel speed
+      self.FLIP = False # flip outputs
       self.v_pid_settings = {
         "k_p": 110,
         "k_i": 11.5,
@@ -49,7 +49,7 @@ class CarControllerParams:
       self.CONTROL_BUS = 2
       self.MAX_TORQUE = 1000
       self.MAX_TORQUE_RATE = 250
-      self.FLIP_Y = False
+      self.FLIP = True
       self.v_pid_settings = self.w_pid_settings = {
         "k_p": 1.27 * self.MAX_TORQUE_RATE,
         "k_i": 1.26 * self.MAX_TORQUE_RATE,
