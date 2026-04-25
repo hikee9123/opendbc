@@ -1,5 +1,33 @@
 import functools
+import random
 import sys
+
+
+def deterministic_bytes_examples(max_examples, seed):
+  """Generate deterministic arbitrary byte-list examples for parser smoke tests."""
+  edge_cases = (
+    [],
+    [b""],
+    [b"\x00"],
+    [b"\xff"],
+    [b"\x00", b"\xff", b"\x00\xff"],
+    [bytes(range(256))],
+    [b"\x00" * 64],
+    [b"\xff" * 64],
+    [b"\xf1\x00", b"\x02" + (b"\x00" * 31)],
+  )
+
+  for i in range(max_examples):
+    if i < len(edge_cases):
+      yield edge_cases[i]
+      continue
+
+    rng = random.Random(f"{seed}-{i}")
+    list_len = rng.randrange(0, 12)
+    if i % 17 == 0:
+      list_len += rng.randrange(12, 32)
+
+    yield [rng.randbytes(rng.randrange(0, 96)) for _ in range(list_len)]
 
 
 def parameterized(argnames, argvalues):

@@ -1,7 +1,5 @@
 import unittest
 
-from hypothesis import given, settings, strategies as st
-
 from opendbc.car import Bus
 from opendbc.car.structs import CarParams
 from opendbc.car.fw_versions import build_fw_dict
@@ -9,6 +7,7 @@ from opendbc.car.toyota.fingerprints import FW_VERSIONS
 from opendbc.car.toyota.values import CAR, DBC, TSS2_CAR, ANGLE_CONTROL_CAR, RADAR_ACC_CAR, SECOC_CAR, \
                                                   FW_QUERY_CONFIG, PLATFORM_CODE_ECUS, FUZZY_EXCLUDED_PLATFORMS, \
                                                   get_platform_codes
+from opendbc.testing import deterministic_bytes_examples
 
 Ecu = CarParams.Ecu
 
@@ -74,12 +73,10 @@ class TestToyotaFingerprint(unittest.TestCase):
 
   # Tests for part numbers, platform codes, and sub-versions which Toyota will use to fuzzy
   # fingerprint in the absence of full FW matches:
-  @settings(max_examples=100)
-  @given(data=st.data())
-  def test_platform_codes_fuzzy_fw(self, data):
-    fw_strategy = st.lists(st.binary())
-    fws = data.draw(fw_strategy)
-    get_platform_codes(fws)
+  def test_platform_codes_fuzzy_fw(self):
+    for example_idx, fws in enumerate(deterministic_bytes_examples(100, "toyota")):
+      with self.subTest(example_idx=example_idx):
+        get_platform_codes(fws)
 
   def test_platform_code_ecus_available(self):
     # Asserts ECU keys essential for fuzzy fingerprinting are available on all platforms
