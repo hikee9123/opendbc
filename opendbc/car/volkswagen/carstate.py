@@ -19,6 +19,7 @@ class CarState(CarStateBase):
     self.upscale_lead_car_signal = False
     self.eps_stock_values = False
     self.acc_type = 0
+    self.measured_curvature = 0.0
 
   def update_button_enable(self, buttonEvents: list[structs.CarState.ButtonEvent]):
     if not self.CP.pcmCruise:
@@ -313,6 +314,9 @@ class CarState(CarStateBase):
     self.eps_init_complete = self.eps_init_complete or hca_status in ("DISABLED", "READY", "ACTIVE") or self.frame > 600
     ret.steerFaultPermanent = self.eps_init_complete and hca_status == "FAULT"
     ret.steerFaultTemporary = (drive_mode and hca_status == "REJECTED") or not self.eps_init_complete
+
+    # Carcontroller falls back to this when latActive is False to satisfy safety inactive-near-meas check
+    self.measured_curvature = -pt_cp.vl["QFK_01"]["Curvature"] * (1, -1)[int(pt_cp.vl["QFK_01"]["Curvature_VZ"])]
 
     ret.gasPressed = pt_cp.vl["Motor_51"]["Accel_Pedal_Pressure"] > 0
     ret.brakePressed = bool(pt_cp.vl["Motor_14"]["MO_Fahrer_bremst"])

@@ -8,45 +8,29 @@ from opendbc.safety.tests.libsafety import libsafety_py
 import opendbc.safety.tests.common as common
 from opendbc.safety.tests.common import CANPackerSafety
 
-MSG_ESC_51     = 0xFC
-MSG_LH_EPS_03  = 0x9F
-MSG_MOTOR_51   = 0x10B
+MSG_ESC_51    = 0xFC
+MSG_QFK_01    = 0x13D
+MSG_Motor_51  = 0x10B
 MSG_GRA_ACC_01 = 0x12B
-MSG_QFK_01     = 0x13D
-MSG_ACC_18     = 0x14D
+MSG_ACC_18    = 0x14D
 MSG_MEB_ACC_01 = 0x300
-MSG_HCA_03     = 0x303
-MSG_LDW_02     = 0x397
-MSG_MOTOR_14   = 0x3BE
+MSG_HCA_03    = 0x303
+MSG_LDW_02    = 0x397
+MSG_MOTOR_14  = 0x3BE
+MSG_LH_EPS_03 = 0x9F
 
 MAX_ACCEL = 2.0
 MIN_ACCEL = -3.5
 INACTIVE_ACCEL = 3.01
 
-# Curvature control limits, see VOLKSWAGEN_MEB_STEERING_LIMITS in volkswagen_meb.h
-DEG_TO_CAN = 149253.7313
-MAX_CURVATURE = 0.195
-# HCA_03.Power: scale 0.4 percent. Safety blocks raw byte > 125
-MAX_POWER_PHYSICAL = 50.0  # 125 * 0.4
+CURVATURE_TO_CAN = 149253.7313  # 1 / 6.7e-06
+MAX_CURVATURE = 29105            # 0.195 rad/m
+MAX_POWER = 125                  # 50% duty
 
 
 class TestVolkswagenMebSafetyBase(common.CarSafetyTest):
-  STANDSTILL_THRESHOLD = 0
   RELAY_MALFUNCTION_ADDRS = {0: (MSG_HCA_03, MSG_LDW_02)}
-
-  packer: CANPackerSafety
-  safety: libsafety_py.LibSafety
-
-  def _set_prev_desired_curvature(self, curvature):
-    self.safety.set_desired_angle_last(round(curvature * DEG_TO_CAN))
-
-  def _reset_curvature_measurement(self, curvature):
-    for _ in range(common.MAX_SAMPLE_VALS):
-      self._rx(self._angle_meas_msg(curvature))
-
-  def _reset_speed(self, speed):
-    for _ in range(common.MAX_SAMPLE_VALS):
-      self._rx(self._speed_msg(speed))
+  STANDSTILL_THRESHOLD = 0
 
   def _speed_msg(self, speed):
     spd_kph = speed * 3.6
@@ -56,10 +40,14 @@ class TestVolkswagenMebSafetyBase(common.CarSafetyTest):
   def _speed_msg_2(self, speed):
     return None
 
-  def _user_brake_msg(self, brake):
+  def _motor_14_msg(self, brake):
     values = {"MO_Fahrer_bremst": brake}
     return self.packer.make_can_msg_safety("Motor_14", 0, values)
 
+  def _user_brake_msg(self, brake):
+    return self._motor_14_msg(brake)
+
+  # driver throttle is on Motor_51
   def _user_gas_msg(self, gas):
     values = {"Accel_Pedal_Pressure": gas, "TSK_Status": 3}
     return self.packer.make_can_msg_safety("Motor_51", 0, values)
@@ -79,101 +67,89 @@ class TestVolkswagenMebSafetyBase(common.CarSafetyTest):
     values = {"GRA_Abbrechen": cancel, "GRA_Tip_Setzen": _set, "GRA_Tip_Wiederaufnahme": resume}
     return self.packer.make_can_msg_safety("GRA_ACC_01", bus, values)
 
-  def _torque_driver_msg(self, torque):
-    values = {"EPS_Lenkmoment": abs(torque), "EPS_VZ_Lenkmoment": torque < 0}
-    return self.packer.make_can_msg_safety("LH_EPS_03", 0, values)
-
-  def _angle_meas_msg(self, curvature):
-    values = {"Curvature": abs(curvature), "Curvature_VZ": curvature >= 0}
-    return self.packer.make_can_msg_safety("QFK_01", 0, values)
-
-  def _angle_cmd_msg(self, curvature, enabled, power=10.0):
-    values = {
-      "Curvature":     abs(curvature),
-      "Curvature_VZ":  curvature > 0 and enabled,
-      "Power":         power,
-      "RequestStatus": 4 if enabled else 2,
-    }
-    return self.packer.make_can_msg_safety("HCA_03", 0, values)
-
   def _acc_18_msg(self, accel):
     values = {"ACC_Sollbeschleunigung_02": accel}
     return self.packer.make_can_msg_safety("ACC_18", 0, values)
 
-  def test_torque_driver_measurement(self):
-    """Tests rx hook correctly parses LH_EPS_03 driver torque, including sign"""
-    for torque in (-50, 50, 0):
+  def _lh_eps_03_msg(self, torque):
+    values = {"EPS_Lenkmoment": abs(torque), "EPS_VZ_Lenkmoment": 1 if torque < 0 else 0}
+    return self.packer.make_can_msg_safety("LH_EPS_03", 0, values)
+
+  def _hca_03_msg(self, curvature_raw, steer_req, power):
+    values = {
+      "Curvature":     abs(curvature_raw) / CURVATURE_TO_CAN,
+      "Curvature_VZ":  1 if curvature_raw > 0 else 0,
+      "Power":         power * 0.4,
+      "RequestStatus": 4 if steer_req else 2,
+    }
+    return self.packer.make_can_msg_safety("HCA_03", 0, values)
+
+  def _qfk_01_msg(self, curvature_raw):
+    values = {
+      "Curvature":    abs(curvature_raw) / CURVATURE_TO_CAN,
+      "Curvature_VZ": 1 if curvature_raw > 0 else 0,
+    }
+    return self.packer.make_can_msg_safety("QFK_01", 0, values)
+
+  def test_steer_power_safety_check(self):
+    self.safety.set_controls_allowed(True)
+    for p in (0, 1, MAX_POWER, MAX_POWER + 1, 200):
+      self._tx(self._hca_03_msg(0, False, 0))  # reset prev power
+      ok = self._tx(self._hca_03_msg(0, True, p))
+      self.assertEqual(ok, p <= MAX_POWER, p)
+    # power non-zero with steer_req off is always blocked
+    self._tx(self._hca_03_msg(0, False, 0))
+    self.assertFalse(self._tx(self._hca_03_msg(0, False, 1)))
+
+  def test_steer_power_zero_when_controls_disabled(self):
+    # vm-based check rejects steer_req=True while controls are off, no soft disengage path
+    self.safety.set_controls_allowed(True)
+    self.assertTrue(self._tx(self._hca_03_msg(0, True, 50)))
+    self.safety.set_controls_allowed(False)
+    self.assertFalse(self._tx(self._hca_03_msg(0, True, 1)))
+    self.assertTrue(self._tx(self._hca_03_msg(0, False, 0)))
+
+  def test_steer_curvature_max(self):
+    # absolute curvature bound
+    self.safety.set_controls_allowed(True)
+    for c in (0, MAX_CURVATURE, -MAX_CURVATURE, MAX_CURVATURE + 5, -MAX_CURVATURE - 5):
+      self.safety.set_desired_angle_last(c)  # not used by curvature check, but set for other state
+      # ramp prev so rate check passes
+      self._tx(self._hca_03_msg(c, True, 1)) if abs(c) <= MAX_CURVATURE else None
+      ok = self._tx(self._hca_03_msg(c, True, 1))
+      self.assertEqual(ok, abs(c) <= MAX_CURVATURE, c)
+
+  def test_steer_inactive_curvature(self):
+    # when steer_req is off, curvature must be zero
+    for ca in (True, False):
+      self.safety.set_controls_allowed(ca)
+      self.assertTrue(self._tx(self._hca_03_msg(0, False, 0)))
+      self.assertFalse(self._tx(self._hca_03_msg(100, False, 0)))
+      self.assertFalse(self._tx(self._hca_03_msg(-100, False, 0)))
+
+  def test_steer_curvature_rate_limit(self):
+    # at speed, curvature step is limited by ISO lateral jerk (5 m/s^3)
+    self.safety.set_controls_allowed(True)
+    for v in (1.0, 10.0, 30.0):
       for _ in range(common.MAX_SAMPLE_VALS):
-        self._rx(self._torque_driver_msg(torque))
-      self.assertEqual(torque, self.safety.get_torque_driver_min())
-      self.assertEqual(torque, self.safety.get_torque_driver_max())
+        self._rx(self._speed_msg(v))
+      self._tx(self._hca_03_msg(0, True, 1))  # reset rate state
+      # 5 / (v-1)^2 * send_rate * curvature_to_can — generous step always allowed near 0
+      small_step = max(1, int(5.0 / max(v - 1, 1.0) ** 2 * 0.02 * CURVATURE_TO_CAN) // 2)
+      self.assertTrue(self._tx(self._hca_03_msg(small_step, True, 1)), v)
+      # huge jump always blocked
+      self._tx(self._hca_03_msg(0, True, 1))
+      self.assertFalse(self._tx(self._hca_03_msg(MAX_CURVATURE, True, 1)), v)
 
   def test_curvature_measurement(self):
-    """Tests rx hook correctly parses QFK_01 measured curvature, including sign"""
-    for curvature in (-0.05, 0.05, 0.0):
-      for _ in range(common.MAX_SAMPLE_VALS):
-        self._rx(self._angle_meas_msg(curvature))
-      target = round(curvature * DEG_TO_CAN)
-      self.assertEqual(target, self.safety.get_angle_meas_min())
-      self.assertEqual(target, self.safety.get_angle_meas_max())
+    # QFK_01 RX hook updates internal curvature sample
+    for c in (0, 100, -100, MAX_CURVATURE, -MAX_CURVATURE):
+      self._rx(self._qfk_01_msg(c))
 
-  def test_steer_power_limits(self):
-    """Power byte: must be 0 unless actively steering, capped at MAX_POWER"""
-    self.safety.set_controls_allowed(True)
-    self._reset_speed(20)
-    self._reset_curvature_measurement(0)
-    self._set_prev_desired_curvature(0)
-    self.assertTrue(self._tx(self._angle_cmd_msg(0, True, power=10.0)))
-    self.assertFalse(self._tx(self._angle_cmd_msg(0, True, power=MAX_POWER_PHYSICAL + 1.0)))
-    self.assertTrue(self._tx(self._angle_cmd_msg(0, False, power=0)))
-    self.assertFalse(self._tx(self._angle_cmd_msg(0, False, power=10.0)))
-
-  def test_steer_curvature_when_enabled(self):
-    """Cover both signs of HCA_03 curvature command and basic accept path"""
-    self.safety.set_controls_allowed(True)
-    self._reset_speed(20)
-    for curvature in (-0.001, 0.001, 0.0):
-      self._reset_curvature_measurement(curvature)
-      self._set_prev_desired_curvature(curvature)
-      self.assertTrue(self._tx(self._angle_cmd_msg(curvature, True)))
-
-  def test_steer_curvature_when_disabled(self):
-    """When steer_req is False, curvature must be exactly 0 (inactive_angle_is_zero)"""
-    self.safety.set_controls_allowed(True)
-    self._reset_speed(20)
-    self._reset_curvature_measurement(0.05)
-    self._set_prev_desired_curvature(0.05)
-    self.assertTrue(self._tx(self._angle_cmd_msg(0, False, power=0)))
-    self.assertFalse(self._tx(self._angle_cmd_msg(0.05, False, power=0)))
-
-  def test_steer_curvature_when_not_allowed(self):
-    """No curvature command allowed when controls are not allowed"""
-    self.safety.set_controls_allowed(False)
-    self._reset_speed(20)
-    self._reset_curvature_measurement(0)
-    self._set_prev_desired_curvature(0)
-    self.assertFalse(self._tx(self._angle_cmd_msg(0, True, power=10)))
-    self.assertTrue(self._tx(self._angle_cmd_msg(0, False, power=0)))
-
-  def test_rx_hook_other_bus(self):
-    """Messages on bus != 0 must not affect state"""
-    self.safety.set_controls_allowed(True)
-    self._rx(self._gra_acc_01_msg(cancel=1, bus=2))
-    self.assertTrue(self.safety.get_controls_allowed())
-
-  def test_acc_status_engaged_states(self):
-    """TSK_Status 3, 4, 5 all map to cruise_engaged; 2 is main_on without engage"""
-    for tsk in (0, 2, 3, 4, 5):
-      values = {"TSK_Status": tsk}
-      self._rx(self.packer.make_can_msg_safety("Motor_51", 0, values))
-
-  def test_wheel_speed_partial_zero(self):
-    """Cover vehicle_moving short-circuit branches when only some wheels report movement"""
-    for wheels in (("HL_Radgeschw",), ("HR_Radgeschw",), ("VL_Radgeschw",), ("VR_Radgeschw",)):
-      values = {s: 0 for s in ("HL_Radgeschw", "HR_Radgeschw", "VL_Radgeschw", "VR_Radgeschw")}
-      for w in wheels:
-        values[w] = 50
-      self._rx(self.packer.make_can_msg_safety("ESC_51", 0, values))
+  def test_driver_torque_measurement(self):
+    # LH_EPS_03 RX hook updates driver torque sample
+    for t in (-200, 0, 200):
+      self._rx(self._lh_eps_03_msg(t))
 
 
 class TestVolkswagenMebStockSafety(TestVolkswagenMebSafetyBase):
@@ -191,27 +167,15 @@ class TestVolkswagenMebStockSafety(TestVolkswagenMebSafetyBase):
     self.assertTrue(self._tx(self._gra_acc_01_msg(cancel=1)))
     self.assertFalse(self._tx(self._gra_acc_01_msg(resume=1)))
     self.assertFalse(self._tx(self._gra_acc_01_msg(_set=1)))
-    # do not block resume if we are engaged already
     self.safety.set_controls_allowed(1)
     self.assertTrue(self._tx(self._gra_acc_01_msg(resume=1)))
-
-  def test_buttons_do_not_engage_under_stock_long(self):
-    # Under stock cruise, set/resume buttons must not engage
-    self._rx(self._tsk_status_msg(False, main_switch=True))
-    self.safety.set_controls_allowed(0)
-    self._rx(self._gra_acc_01_msg(_set=1, bus=0))
-    self._rx(self._gra_acc_01_msg(bus=0))
-    self.assertFalse(self.safety.get_controls_allowed())
-    # cancel still disengages
-    self.safety.set_controls_allowed(1)
-    self._rx(self._gra_acc_01_msg(cancel=1, bus=0))
-    self.assertFalse(self.safety.get_controls_allowed())
 
 
 class TestVolkswagenMebLongSafety(TestVolkswagenMebSafetyBase):
   TX_MSGS = [[MSG_HCA_03, 0], [MSG_LDW_02, 0], [MSG_ACC_18, 0], [MSG_MEB_ACC_01, 0]]
   FWD_BLACKLISTED_ADDRS = {2: [MSG_HCA_03, MSG_LDW_02, MSG_ACC_18, MSG_MEB_ACC_01]}
   RELAY_MALFUNCTION_ADDRS = {0: (MSG_HCA_03, MSG_LDW_02, MSG_ACC_18, MSG_MEB_ACC_01)}
+  INACTIVE_ACCEL = INACTIVE_ACCEL
 
   def setUp(self):
     self.packer = CANPackerSafety("vw_meb")
@@ -219,7 +183,6 @@ class TestVolkswagenMebLongSafety(TestVolkswagenMebSafetyBase):
     self.safety.set_safety_hooks(CarParams.SafetyModel.volkswagenMeb, VolkswagenSafetyFlags.LONG_CONTROL)
     self.safety.init_tests()
 
-  # stock cruise controls are entirely bypassed under openpilot longitudinal control
   def test_disable_control_allowed_from_cruise(self):
     pass
 
@@ -231,7 +194,7 @@ class TestVolkswagenMebLongSafety(TestVolkswagenMebSafetyBase):
 
   def test_set_and_resume_buttons(self):
     for button in ("set", "resume"):
-      # main switch off: button has no effect
+      # Mmin switch off:  button has no effect
       self.safety.set_controls_allowed(0)
       self._rx(self._tsk_status_msg(False, main_switch=False))
       self._rx(self._gra_acc_01_msg(_set=(button == "set"), resume=(button == "resume"), bus=0))

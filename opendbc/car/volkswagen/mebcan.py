@@ -12,7 +12,7 @@ ACC_HMS_NO_REQUEST = 0
 def create_steering_control(packer, bus, apply_curvature, lkas_enabled, power):
   values = {
     "Curvature":     abs(apply_curvature),
-    "Curvature_VZ":  1 if apply_curvature > 0 and lkas_enabled else 0,
+    "Curvature_VZ":  1 if apply_curvature > 0 else 0,
     "Power":         power if lkas_enabled else 0,
     "RequestStatus": 4 if lkas_enabled else 2,  # 4: control active, 2: standby
     "HighSendRate":  lkas_enabled,

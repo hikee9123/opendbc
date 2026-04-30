@@ -149,9 +149,9 @@ class CarController(CarControllerBase):
     # **** Steering ********************************************************* #
 
     if self.frame % self.CCP.STEER_STEP == 0:
-      # MEB safety enforces inactive curvature == 0, so pass 0 as fallback when latActive is False
+      # Safety inactive check is "near measured curvature", so fall back to measured when not active
       apply_curvature = apply_std_steer_angle_limits(actuators.curvature, self.apply_curvature_last, CS.out.vEgoRaw,
-                                                     0., CC.latActive, self.CCP.CURVATURE_LIMITS)
+                                                     CS.measured_curvature, CC.latActive, self.CCP.CURVATURE_LIMITS)
       self.apply_curvature_last = apply_curvature
       can_sends.append(mebcan.create_steering_control(self.packer_pt, self.CAN.pt, apply_curvature, CC.latActive,
                                                       self.CCP.STEERING_POWER_MAX))
