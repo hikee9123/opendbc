@@ -7,6 +7,7 @@ from opendbc.can import CANDefine
 from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.docs_definitions import CarFootnote, CarHarness, CarDocs, CarParts, Column
 from opendbc.car.fw_query_definitions import EcuAddrSubAddr, FwQueryConfig, Request, p16
+from opendbc.car.lateral import AngleSteeringLimits
 from opendbc.car.vin import Vin
 
 Ecu = structs.CarParams.Ecu
@@ -103,12 +104,15 @@ class CarControllerParams:
       self.LDW_STEP = 10
       self.ACC_HUD_STEP = 6              # MEB_ACC_01 HUD frequency 16Hz
       self.ACC_CONTROL_STEP = 2          # ACC_18 acceleration request, 50Hz
-      self.STEER_DRIVER_ALLOWANCE = 60   # 0.6 Nm
-      self.STEER_DRIVER_MAX = 300        # 3.0 Nm
-      self.CURVATURE_MAX = 0.195         # rad/m
+      # Raised vs MQB to debounce ID.4 EPS torque noise on bumpy roads
+      self.STEER_DRIVER_ALLOWANCE = 100  # 1.0 Nm
       self.STEERING_POWER_MAX = 50
-      self.STEERING_POWER_MIN = 4
-      self.STEERING_POWER_STEP = 2
+
+      self.CURVATURE_LIMITS = AngleSteeringLimits(
+        STEER_ANGLE_MAX=0.195,                              # rad/m
+        ANGLE_RATE_LIMIT_UP=([0., 5., 25.], [0.04, 0.04, 0.005]),
+        ANGLE_RATE_LIMIT_DOWN=([0., 5., 25.], [0.04, 0.04, 0.005]),
+      )
 
       self.hca_status_values = can_define.dv["QFK_01"]["LatCon_HCA_Status"]
       self.shifter_values = can_define.dv["Gateway_73"]["GE_Fahrstufe"]
