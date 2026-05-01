@@ -104,8 +104,7 @@ class CarControllerParams:
       self.LDW_STEP = 10
       self.ACC_HUD_STEP = 6              # MEB_ACC_01 HUD frequency 16Hz
       self.ACC_CONTROL_STEP = 2          # ACC_18 acceleration request, 50Hz
-      # Raised vs MQB to debounce ID.4 EPS torque noise on bumpy roads
-      self.STEER_DRIVER_ALLOWANCE = 100  # 1.0 Nm
+      self.STEER_DRIVER_ALLOWANCE = 80   # 0.8 Nm
       self.STEERING_POWER_MAX = 50
 
       self.CURVATURE_LIMITS = AngleSteeringLimits(
