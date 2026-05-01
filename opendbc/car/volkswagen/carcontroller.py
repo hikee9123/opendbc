@@ -55,6 +55,7 @@ class CarController(CarControllerBase):
     self.hca_mitigation = HCAMitigation(self.CCP) if not (CP.flags & VolkswagenFlags.MEB) else None
 
     self.apply_curvature_last = 0.0
+    self.accel_last = 0.0
 
   def update(self, CC, CS, now_nanos):
     if self.CP.flags & VolkswagenFlags.MEB:
@@ -163,6 +164,9 @@ class CarController(CarControllerBase):
       stopping = actuators.longControlState == LongCtrlState.stopping
       starting = actuators.longControlState == LongCtrlState.pid and (CS.esp_hold_confirmation or CS.out.vEgo < self.CP.vEgoStopping)
       accel = float(np.clip(actuators.accel, self.CCP.ACCEL_MIN, self.CCP.ACCEL_MAX) if CC.enabled else 0)
+      ts = DT_CTRL * self.CCP.ACC_CONTROL_STEP
+      accel = float(np.clip(accel, self.accel_last - 2.0 * ts, self.accel_last + 2.0 * ts))
+      self.accel_last = 0.0 if override else accel
       can_sends.append(mebcan.create_acc_accel_control(self.packer_pt, self.CAN.pt, CS.acc_type, CC.enabled, accel,
                                                        acc_control, stopping, starting, CS.esp_hold_confirmation,
                                                        override))
