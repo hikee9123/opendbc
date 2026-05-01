@@ -149,8 +149,9 @@ class CarController(CarControllerBase):
     # **** Steering ********************************************************* #
 
     if self.frame % self.CCP.STEER_STEP == 0:
-      # Safety inactive check is "near measured curvature", so fall back to measured when not active
-      apply_curvature = apply_std_steer_angle_limits(actuators.curvature, self.apply_curvature_last, CS.out.vEgoRaw,
+      # closed loop EPS tracking so the rack follows our intent, not its own model
+      desired_curvature = actuators.curvature + (CS.measured_curvature - CC.currentCurvature)
+      apply_curvature = apply_std_steer_angle_limits(desired_curvature, self.apply_curvature_last, CS.out.vEgoRaw,
                                                      CS.measured_curvature, CC.latActive, self.CCP.CURVATURE_LIMITS)
       self.apply_curvature_last = apply_curvature
       can_sends.append(mebcan.create_steering_control(self.packer_pt, self.CAN.pt, apply_curvature, CC.latActive,
