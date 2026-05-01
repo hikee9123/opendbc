@@ -46,7 +46,6 @@ class CarInterface(CarInterfaceBase):
       ret.steerControlType = structs.CarParams.SteerControlType.angle
       ret.steerAtStandstill = True
       ret.networkLocation = NetworkLocation.gateway
-      ret.dashcamOnly = is_release
 
     else:
       # Set global MQB parameters
