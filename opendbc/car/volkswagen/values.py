@@ -104,8 +104,11 @@ class CarControllerParams:
       self.LDW_STEP = 10
       self.ACC_HUD_STEP = 6              # MEB_ACC_01 HUD frequency 16Hz
       self.ACC_CONTROL_STEP = 2          # ACC_18 acceleration request, 50Hz
-      self.STEER_DRIVER_ALLOWANCE = 80   # 0.8 Nm
-      self.STEERING_POWER_MAX = 50
+      self.STEER_DRIVER_ALLOWANCE = 60   # Driver intervention threshold 0.6 Nm
+      self.STEER_DRIVER_MAX = 300        # Driver torque ceiling 3.0 Nm
+      self.STEERING_POWER_MAX = 50       # HCA_03 max steering power, percentage
+      self.STEERING_POWER_MIN = 4        # HCA_03 min steering power, percentage
+      self.STEERING_POWER_STEP = 2       # HCA_03 power slew per send
 
       self.CURVATURE_LIMITS = AngleSteeringLimits(
         STEER_ANGLE_MAX=0.195,                              # rad/m
