@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import math
 import unittest
 import numpy as np
 
@@ -7,6 +8,16 @@ from opendbc.car.volkswagen.values import VolkswagenSafetyFlags
 from opendbc.safety.tests.libsafety import libsafety_py
 import opendbc.safety.tests.common as common
 from opendbc.safety.tests.common import CANPackerSafety
+
+
+# Mirror of safety/modes/volkswagen_meb.h volkswagen_meb_curvature_to_angle
+def curvature_to_angle(curvature_can, speed=1.0):
+  slip = -0.0006055171512345705
+  steer_ratio = 15.6
+  wheelbase = 2.77
+  cf = 1.0 / (1.0 - slip * speed * speed) / wheelbase
+  curv = curvature_can * 6.7e-6
+  return round(curv * steer_ratio / cf * math.degrees(1.0) * 10)
 
 MSG_ESC_51    = 0xFC
 MSG_QFK_01    = 0x13D
@@ -110,12 +121,11 @@ class TestVolkswagenMebSafetyBase(common.CarSafetyTest):
     self.assertTrue(self._tx(self._hca_03_msg(0, False, 0)))
 
   def test_steer_curvature_max(self):
-    # absolute curvature bound
+    # absolute curvature bound applied directly on HCA_03 payload
     self.safety.set_controls_allowed(True)
     for c in (0, MAX_CURVATURE, -MAX_CURVATURE, MAX_CURVATURE + 5, -MAX_CURVATURE - 5):
-      self.safety.set_desired_angle_last(c)  # not used by curvature check, but set for other state
-      # ramp prev so rate check passes
-      self._tx(self._hca_03_msg(c, True, 1)) if abs(c) <= MAX_CURVATURE else None
+      # stage prev angle to the bicycle-model equivalent so rate check passes for in-range values
+      self.safety.set_desired_angle_last(curvature_to_angle(c))
       ok = self._tx(self._hca_03_msg(c, True, 1))
       self.assertEqual(ok, abs(c) <= MAX_CURVATURE, c)
 

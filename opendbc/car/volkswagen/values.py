@@ -2,13 +2,16 @@ from collections import defaultdict, namedtuple
 from dataclasses import dataclass, field
 from enum import Enum, IntFlag, StrEnum
 
-from opendbc.car import Bus, CanBusBase, CarSpecs, DbcDict, PlatformConfig, Platforms, structs, uds
+from opendbc.car import ACCELERATION_DUE_TO_GRAVITY, Bus, CanBusBase, CarSpecs, DbcDict, PlatformConfig, Platforms, structs, uds
 from opendbc.can import CANDefine
 from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.docs_definitions import CarFootnote, CarHarness, CarDocs, CarParts, Column
 from opendbc.car.fw_query_definitions import EcuAddrSubAddr, FwQueryConfig, Request, p16
-from opendbc.car.lateral import AngleSteeringLimits
+from opendbc.car.lateral import AngleSteeringLimits, ISO_LATERAL_ACCEL, ISO_LATERAL_JERK
 from opendbc.car.vin import Vin
+
+# Add tolerance for average banked road since safety doesn't have the roll
+AVERAGE_ROAD_ROLL = 0.06  # ~3.4 deg, 6% superelevation
 
 Ecu = structs.CarParams.Ecu
 NetworkLocation = structs.CarParams.NetworkLocation
@@ -110,10 +113,13 @@ class CarControllerParams:
       self.STEERING_POWER_MIN = 4        # HCA_03 min steering power, percentage
       self.STEERING_POWER_STEP = 2       # HCA_03 power slew per send
 
-      self.CURVATURE_LIMITS = AngleSteeringLimits(
-        STEER_ANGLE_MAX=0.195,                              # rad/m
-        ANGLE_RATE_LIMIT_UP=([0., 5., 25.], [0.04, 0.04, 0.005]),
-        ANGLE_RATE_LIMIT_DOWN=([0., 5., 25.], [0.04, 0.04, 0.005]),
+      self.ANGLE_LIMITS = AngleSteeringLimits(
+        STEER_ANGLE_MAX=600,                              # 600 deg, EPS rack lock-to-lock ~480 deg
+        ANGLE_RATE_LIMIT_UP=([], []),
+        ANGLE_RATE_LIMIT_DOWN=([], []),
+        MAX_LATERAL_ACCEL=ISO_LATERAL_ACCEL + (ACCELERATION_DUE_TO_GRAVITY * AVERAGE_ROAD_ROLL),
+        MAX_LATERAL_JERK=ISO_LATERAL_JERK + (ACCELERATION_DUE_TO_GRAVITY * AVERAGE_ROAD_ROLL),
+        MAX_ANGLE_RATE=8,
       )
 
       self.hca_status_values = can_define.dv["QFK_01"]["LatCon_HCA_Status"]

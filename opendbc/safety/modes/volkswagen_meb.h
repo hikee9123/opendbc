@@ -51,6 +51,25 @@ static uint32_t volkswagen_meb_compute_crc(const CANPacket_t *msg) {
   return (uint8_t)(crc ^ 0xFFU);
 }
 
+// HCA_03 curvature CAN scale: 6.7e-6 rad/m per LSB
+#define VOLKSWAGEN_MEB_CURVATURE_SCALE 6.7e-6f
+#define VOLKSWAGEN_MEB_RAD_TO_DEG 57.295779513f
+
+// ID.4 MK1 bicycle model (matches openpilot VehicleModel calc_slip_factor)
+static const AngleSteeringParams VOLKSWAGEN_MEB_STEERING_PARAMS = {
+  .slip_factor = -0.0006055171512345705f,
+  .steer_ratio = 15.6f,
+  .wheelbase = 2.77f,
+};
+
+// Convert HCA_03 curvature CAN units to steering wheel angle in 0.1 deg via bicycle model
+static int volkswagen_meb_curvature_to_angle(int curvature_can) {
+  float speed = SAFETY_MAX(vehicle_speed.values[0] / VEHICLE_SPEED_FACTOR, 1.0f);
+  float cf = 1.0f / (1.0f - (VOLKSWAGEN_MEB_STEERING_PARAMS.slip_factor * speed * speed)) / VOLKSWAGEN_MEB_STEERING_PARAMS.wheelbase;
+  float curvature = (float)curvature_can * VOLKSWAGEN_MEB_CURVATURE_SCALE;
+  return ROUND(curvature * VOLKSWAGEN_MEB_STEERING_PARAMS.steer_ratio / cf * VOLKSWAGEN_MEB_RAD_TO_DEG * 10.0f);
+}
+
 // Power signal in HCA_03 (MEB-specific)
 static int desired_steer_power_last;
 
@@ -126,7 +145,7 @@ static void volkswagen_meb_rx_hook(const CANPacket_t *msg) {
       UPDATE_VEHICLE_SPEED((fl + fr + rl + rr) * (0.0075 / 4.0 / 3.6));
     }
 
-    // Measured curvature feedback (used by steer_angle_cmd_checks_vm inactive bound)
+    // Measured steering wheel angle in 0.1 deg via bicycle model, used by inactive-near-meas check
     if (msg->addr == MSG_QFK_01) {
       uint32_t raw_curvature = ((uint32_t)(msg->data[6] & 0x7FU) << 8) | (uint32_t)msg->data[5];
       int current_curvature = (int)raw_curvature;
@@ -134,7 +153,7 @@ static void volkswagen_meb_rx_hook(const CANPacket_t *msg) {
       if (!current_curvature_sign) {
         current_curvature *= -1;
       }
-      update_sample(&angle_meas, current_curvature);
+      update_sample(&angle_meas, volkswagen_meb_curvature_to_angle(current_curvature));
     }
 
     if (msg->addr == MSG_LH_EPS_03) {
@@ -189,17 +208,15 @@ static bool volkswagen_meb_tx_hook(const CANPacket_t *msg) {
     .inactive_accel = 3010,  // VW sends one increment above the max range when inactive
   };
 
-  // Identity vehicle model so steer_angle_cmd_checks_vm operates directly on curvature CAN units
+  // Steering wheel angle limits in 0.1 deg, ID.4 EPS rack lock-to-lock ~480 deg, 600 deg leaves headroom
   static const AngleSteeringLimits VOLKSWAGEN_MEB_STEERING_LIMITS = {
-    .max_angle = 29105,                  // 0.195 rad/m
-    .angle_deg_to_can = 149253.7313,     // 1 / 6.7e-06 rad/m per CAN
+    .max_angle = 6000,
+    .angle_deg_to_can = 10,
     .frequency = 50U,
   };
-  static const AngleSteeringParams VOLKSWAGEN_MEB_STEERING_PARAMS = {
-    .slip_factor = 0.0,
-    .steer_ratio = 0.01745329252,        // 1 / RAD_TO_DEG, makes get_angle_from_curvature an identity
-    .wheelbase = 1.0,
-  };
+
+  // HCA_03 absolute curvature ceiling, applied directly on the CAN payload
+  const int VOLKSWAGEN_MEB_MAX_CURVATURE_CAN = 29105;  // 0.195 rad/m / 6.7e-6
 
   bool tx = true;
 
@@ -217,12 +234,13 @@ static bool volkswagen_meb_tx_hook(const CANPacket_t *msg) {
     if (steer_power_cmd_checks(steer_power, steer_req)) {
       tx = false;
     }
-    // absolute max enforced explicitly: vm only enforces lateral accel which is non-binding at low speed
-    if (safety_max_limit_check(desired_curvature_raw, VOLKSWAGEN_MEB_STEERING_LIMITS.max_angle,
-                               -VOLKSWAGEN_MEB_STEERING_LIMITS.max_angle)) {
+    // absolute curvature ceiling: vm-derived bounds collapse near zero speed
+    if (safety_max_limit_check(desired_curvature_raw, VOLKSWAGEN_MEB_MAX_CURVATURE_CAN,
+                               -VOLKSWAGEN_MEB_MAX_CURVATURE_CAN)) {
       tx = false;
     }
-    if (steer_angle_cmd_checks_vm(desired_curvature_raw, steer_req, VOLKSWAGEN_MEB_STEERING_LIMITS,
+    int desired_angle = volkswagen_meb_curvature_to_angle(desired_curvature_raw);
+    if (steer_angle_cmd_checks_vm(desired_angle, steer_req, VOLKSWAGEN_MEB_STEERING_LIMITS,
                                   VOLKSWAGEN_MEB_STEERING_PARAMS)) {
       tx = false;
     }

@@ -1,9 +1,11 @@
+import math
 import numpy as np
 from opendbc.can import CANPacker
 from opendbc.car import Bus, DT_CTRL, structs
-from opendbc.car.lateral import apply_driver_steer_torque_limits, apply_std_steer_angle_limits
+from opendbc.car.lateral import apply_driver_steer_torque_limits, apply_steer_angle_limits_vm
 from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.interfaces import CarControllerBase
+from opendbc.car.vehicle_model import VehicleModel
 from opendbc.car.volkswagen import mebcan, mlbcan, mqbcan, pqcan
 from opendbc.car.volkswagen.values import CanBus, CarControllerParams, VolkswagenFlags
 
@@ -52,9 +54,10 @@ class CarController(CarControllerBase):
     self.gra_acc_counter_last = None
     self.hca_mitigation = HCAMitigation(self.CCP) if not (CP.flags & VolkswagenFlags.MEB) else None
 
-    self.apply_curvature_last = 0.0
+    self.apply_angle_last = 0.0
     self.steer_power_last = 0
     self.accel_last = 0.0
+    self.VM = VehicleModel(CP) if CP.flags & VolkswagenFlags.MEB else None
 
   def update(self, CC, CS, now_nanos):
     if self.CP.flags & VolkswagenFlags.MEB:
@@ -149,12 +152,16 @@ class CarController(CarControllerBase):
     # **** Steering ********************************************************* #
 
     if self.frame % self.CCP.STEER_STEP == 0:
-      # ramp power down to 0 before dropping HCA so the rack does not fault
+      v_ego = max(CS.out.vEgoRaw, 1)
+      measured_angle = math.degrees(self.VM.get_steer_from_curvature(CS.measured_curvature, v_ego, 0))
+      # Power ramp prevents EPS REJECTED/FAULT on engage/disengage; stay-alive on disengage
+      # ramps power down to 0 before dropping HCA so the rack sees a continuous transition.
       if CC.latActive:
         hca_enabled = True
-        apply_curvature = actuators.curvature + (CS.measured_curvature - CC.currentCurvature)
-        apply_curvature = apply_std_steer_angle_limits(apply_curvature, self.apply_curvature_last, CS.out.vEgoRaw,
-                                                       CS.measured_curvature, CC.latActive, self.CCP.CURVATURE_LIMITS)
+        target_curvature = actuators.curvature + (CS.measured_curvature - CC.currentCurvature)
+        target_angle = math.degrees(self.VM.get_steer_from_curvature(target_curvature, v_ego, 0))
+        apply_angle = apply_steer_angle_limits_vm(target_angle, self.apply_angle_last, v_ego, measured_angle,
+                                                  CC.latActive, self.CCP, self.VM)
         min_power = max(self.steer_power_last - self.CCP.STEERING_POWER_STEP, self.CCP.STEERING_POWER_MIN)
         max_power = min(self.steer_power_last + self.CCP.STEERING_POWER_STEP, self.CCP.STEERING_POWER_MAX)
         target_power_driver = int(np.interp(abs(CS.out.steeringTorque),
@@ -164,15 +171,15 @@ class CarController(CarControllerBase):
         steering_power = min(max(target_power, min_power), max_power)
       elif self.steer_power_last > 0:
         hca_enabled = True
-        apply_curvature = float(np.clip(CS.measured_curvature, -self.CCP.CURVATURE_LIMITS.STEER_ANGLE_MAX,
-                                        self.CCP.CURVATURE_LIMITS.STEER_ANGLE_MAX))
+        apply_angle = measured_angle
         steering_power = max(self.steer_power_last - self.CCP.STEERING_POWER_STEP, 0)
       else:
         hca_enabled = False
-        apply_curvature = 0.
+        apply_angle = measured_angle
         steering_power = 0
 
-      self.apply_curvature_last = apply_curvature
+      apply_curvature = self.VM.calc_curvature(math.radians(apply_angle), v_ego, 0)
+      self.apply_angle_last = apply_angle
       self.steer_power_last = steering_power
       can_sends.append(mebcan.create_steering_control(self.packer_pt, self.CAN.pt, apply_curvature, hca_enabled, steering_power))
 
@@ -210,7 +217,7 @@ class CarController(CarControllerBase):
                                                          cancel=CC.cruiseControl.cancel, resume=CC.cruiseControl.resume))
 
     new_actuators = actuators.as_builder()
-    new_actuators.curvature = float(self.apply_curvature_last)
+    new_actuators.steeringAngleDeg = float(self.apply_angle_last)
 
     self.gra_acc_counter_last = CS.gra_stock_values["COUNTER"]
     self.frame += 1
