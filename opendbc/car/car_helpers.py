@@ -1,6 +1,7 @@
 import os
 import time
 
+from openpilot.common.params import Params  # #custom
 from opendbc.car import gen_empty_fingerprint
 from opendbc.car.can_definitions import CanRecvCallable, CanSendCallable
 from opendbc.car.carlog import carlog
@@ -155,6 +156,12 @@ def get_car(can_recv: CanRecvCallable, can_send: CanSendCallable, set_obd_multip
   if candidate is None:
     carlog.error({"event": "car doesn't match any fingerprints", "fingerprints": repr(fingerprints)})
     candidate = "MOCK"
+
+    # #custom start: allow manual car selection from UI
+    selected_car = Params().get("SelectedCar")
+    if selected_car:
+      candidate = selected_car.decode("utf-8")
+    # #custom end
 
   CarInterface = interfaces[candidate]
   CP: CarParams = CarInterface.get_params(candidate, fingerprints, car_fw, alpha_long_allowed, is_release, docs=False)
