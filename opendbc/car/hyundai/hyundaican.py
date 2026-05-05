@@ -40,7 +40,7 @@ def create_lkas11(packer, frame, CP, apply_torque, steer_req,
                            CAR.HYUNDAI_SANTA_FE_2022, CAR.KIA_K5_2021, CAR.HYUNDAI_IONIQ_HEV_2022, CAR.HYUNDAI_SANTA_FE_HEV_2022,
                            CAR.HYUNDAI_SANTA_FE_PHEV_2022, CAR.KIA_STINGER_2022, CAR.KIA_K5_HEV_2020, CAR.KIA_CEED,
                            CAR.HYUNDAI_AZERA_6TH_GEN, CAR.HYUNDAI_AZERA_HEV_6TH_GEN, CAR.HYUNDAI_CUSTIN_1ST_GEN, CAR.HYUNDAI_KONA_2022):
-    values["CF_Lkas_LdwsActivemode"] = int(left_lane) + (int(right_lane) << 1)
+    #values["CF_Lkas_LdwsActivemode"] = int(left_lane) + (int(right_lane) << 1)
     values["CF_Lkas_LdwsOpt_USM"] = 2
 
     # FcwOpt_USM 5 = Orange blinking car + lanes
@@ -123,6 +123,20 @@ def create_lfahda_mfc(packer, enabled):
     "LFA_Icon_State": 2 if enabled else 0,
   }
   return packer.make_can_msg("LFAHDA_MFC", 0, values)
+
+
+# 100 Hz  #custom
+def create_mdps12(packer, frame, mdps12):
+  values = mdps12
+  values["CF_Mdps_ToiActive"] = 0      # 1:enable  0:normal
+  values["CF_Mdps_ToiUnavail"] = 1     # 0
+  values["CF_Mdps_MsgCount2"] = frame % 0x100
+  values["CF_Mdps_Chksum2"] = 0
+
+  dat = packer.make_can_msg("MDPS12", 2, values)[1]
+  checksum = sum(dat) % 256
+  values["CF_Mdps_Chksum2"] = checksum
+  return packer.make_can_msg("MDPS12", 2, values)   # 0
 
 
 def create_acc_commands(packer, enabled, accel, upper_jerk, idx, hud_control, set_speed, stopping, long_override, use_fca, CP):

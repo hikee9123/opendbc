@@ -283,13 +283,42 @@ struct CarState {
     }
   }
 
+  # #custom start: Hyundai custom car state extension
+  struct CarSCustom {
+    tpms @0 :Tpms;
+    alertTextMsg1  @1 :Text;
+    alertTextMsg2  @2 :Text;
+    alertTextMsg3  @3 :Text;
+
+    electGearStep @4 :Int16;
+    supportedCars @5 :List(Text);
+
+    breakPos @6 :Float32;
+    leadDistance @7 :Float32;
+    gapSet @8 :Int16;
+    touched @9 :Int16;
+
+    struct Tpms {
+      unit @0 :Int16;
+      fl @1 :Float32;
+      fr @2 :Float32;
+      rl @3 :Float32;
+      rr @4 :Float32;
+    }
+  }
+
+  # #custom end
+
   # deprecated
   errorsDEPRECATED @0 :List(OnroadEventDEPRECATED.EventName);
   gasDEPRECATED @3 :Float32;        # this is user pedal only
   brakeLightsDEPRECATED @19 :Bool;
   steeringRateLimitedDEPRECATED @29 :Bool;
   canMonoTimesDEPRECATED @12: List(UInt64);
-  canRcvTimeoutDEPRECATED @49 :Bool;
+  # #custom start: Hyundai custom car state extension
+  #canRcvTimeoutDEPRECATED @49 :Bool;
+  carSCustom @49 :CarSCustom;
+  # #custom end
   eventsDEPRECATED @13 :List(OnroadEventDEPRECATED);
   clutchPressedDEPRECATED @28 :Bool;
   engineRpmDEPRECATED @46 :Float32;

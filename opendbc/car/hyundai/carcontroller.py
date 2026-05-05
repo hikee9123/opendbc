@@ -6,6 +6,7 @@ from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.hyundai import hyundaicanfd, hyundaican
 from opendbc.car.hyundai.hyundaicanfd import CanBus
 from opendbc.car.hyundai.values import HyundaiFlags, Buttons, CarControllerParams, CAR
+from opendbc.car.hyundai.custom.carcontroller import CarControllerCustom  # #custom
 from opendbc.car.interfaces import CarControllerBase
 
 VisualAlert = structs.CarControl.HUDControl.VisualAlert
@@ -61,6 +62,9 @@ class CarController(CarControllerBase):
     self.car_fingerprint = CP.carFingerprint
     self.last_button_frame = 0
     self.cancel_counter = 0
+    # #custom start: Hyundai community cruise button helper
+    self.customCC = CarControllerCustom(CP)
+    # #custom end
 
   def update(self, CC, CS, now_nanos):
     actuators = CC.actuators
@@ -139,8 +143,14 @@ class CarController(CarControllerBase):
 
     # Button messages
     if not self.CP.openpilotLongitudinalControl:
+      # #custom start: Hyundai community stock SCC helpers
+      can_sends.append(hyundaican.create_mdps12(self.packer, self.frame, CS.customCS.mdps12))
+      # #custom end
       if self.cancel_counter > CANCEL_BUTTON_DELAY_FRAMES:
         can_sends.append(hyundaican.create_clu11(self.packer, self.frame, CS.clu11, Buttons.CANCEL, self.CP))
+        # #custom start: Hyundai community cruise button helper
+        self.customCC.NC.reset()
+        # #custom end
       elif CC.cruiseControl.resume:
         # send resume at a max freq of 10Hz
         if (self.frame - self.last_button_frame) * DT_CTRL > 0.1:
@@ -148,6 +158,10 @@ class CarController(CarControllerBase):
           can_sends.extend([hyundaican.create_clu11(self.packer, self.frame, CS.clu11, Buttons.RES_ACCEL, self.CP)] * 25)
           if (self.frame - self.last_button_frame) * DT_CTRL >= 0.15:
             self.last_button_frame = self.frame
+      # #custom start: Hyundai community cruise button helper
+      elif CS.out.cruiseState.available:
+        self.customCC.create_button_messages(self.packer, can_sends, CC, CS, self.frame)
+      # #custom end
 
     if self.frame % 2 == 0 and self.CP.openpilotLongitudinalControl:
       # TODO: unclear if this is needed
