@@ -290,6 +290,7 @@ static safety_config hyundai_community_init(uint16_t param) {
   };
 
   hyundai_common_init(param);
+  brake_disengage = hyundai_longitudinal;
 
 
   safety_config ret;

@@ -225,9 +225,13 @@ class CarStateCustom:
       cm = int(getattr(ui_comm, 'cruiseMode', self.cruise_set_mode))
       cg = int(getattr(ui_comm, 'cruiseGap', self.cruiseGap))
       csl = float(getattr(ui_comm, 'curveSpeedLimit', self.curveSpeedLimit))
+      ae = int(getattr(ui_comm, 'autoEngage', self.autoEngage))
+      alc = int(getattr(ui_comm, 'autoLaneChange', self.autoLaneChange))
       if self.cruise_set_mode != cm: self.cruise_set_mode = cm
       if self.cruiseGap != cg:       self.cruiseGap = cg
       if getattr(self, 'curveSpeedLimit', None) != csl: self.curveSpeedLimit = csl
+      if getattr(self, 'autoEngage', None) != ae: self.autoEngage = ae
+      if getattr(self, 'autoLaneChange', None) != alc: self.autoLaneChange = alc
 
 
     # 모델 곡률/이격

@@ -159,6 +159,49 @@ class TestHyundaiSafetyFCEV(TestHyundaiSafety):
     return self.packer.make_can_msg_safety("FCEV_ACCELERATOR", 0, values)
 
 
+class TestHyundaiCommunityBrakeSafety(common.SafetyTestBase):
+  STANDSTILL_THRESHOLD = 12
+  cnt_speed = 0
+  cnt_brake = 0
+
+  def setUp(self):
+    self.packer = CANPackerSafety("hyundai_kia_generic")
+    self.safety = libsafety_py.libsafety
+    self._set_safety_hooks()
+
+  def _set_safety_hooks(self, param=0):
+    self.safety.set_safety_hooks(CarParams.SafetyModel.hyundaiCommunity, param)
+    self.safety.init_tests()
+
+  def _user_brake_msg(self, brake):
+    values = {"DriverOverride": 2 if brake else random.choice((0, 1, 3)),
+              "AliveCounterTCS": self.cnt_brake % 8}
+    self.__class__.cnt_brake += 1
+    return self.packer.make_can_msg_safety("TCS13", 0, values, fix_checksum=checksum)
+
+  def _speed_msg(self, speed):
+    values = {"WHL_SPD_%s" % s: speed * 0.03125 for s in ["FL", "FR", "RL", "RR"]}
+    values["WHL_SPD_AliveCounter_LSB"] = (self.cnt_speed % 16) & 0x3
+    values["WHL_SPD_AliveCounter_MSB"] = (self.cnt_speed % 16) >> 2
+    self.__class__.cnt_speed += 1
+    return self.packer.make_can_msg_safety("WHL_SPD11", 0, values, fix_checksum=checksum)
+
+  def test_stock_scc_brake_does_not_disengage(self):
+    self._rx(self._speed_msg(self.STANDSTILL_THRESHOLD + 1))
+    self.safety.set_controls_allowed(True)
+    self._rx(self._user_brake_msg(True))
+    self.assertTrue(self.safety.get_controls_allowed())
+    self.assertTrue(self.safety.get_longitudinal_allowed())
+
+  def test_longitudinal_brake_disengages(self):
+    self._set_safety_hooks(HyundaiSafetyFlags.LONG)
+    self._rx(self._speed_msg(self.STANDSTILL_THRESHOLD + 1))
+    self.safety.set_controls_allowed(True)
+    self._rx(self._user_brake_msg(True))
+    self.assertFalse(self.safety.get_controls_allowed())
+    self.assertFalse(self.safety.get_longitudinal_allowed())
+
+
 class TestHyundaiLegacySafety(TestHyundaiSafety):
   def setUp(self):
     self.packer = CANPackerSafety("hyundai_kia_generic")
