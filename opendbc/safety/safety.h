@@ -346,7 +346,7 @@ static void generic_rx_checks(void) {
 
   // exit controls on rising edge of brake press
   if (brake_disengage && brake_pressed && (!brake_pressed_prev || vehicle_moving)) {
-    //controls_allowed = false;
+    //controls_allowed = false; #custom
   }
   brake_pressed_prev = brake_pressed;
 
