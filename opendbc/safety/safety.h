@@ -48,6 +48,7 @@ bool gas_pressed = false;
 bool gas_pressed_prev = false;
 bool brake_pressed = false;
 bool brake_pressed_prev = false;
+bool brake_disengage = true;
 bool regen_braking = false;
 bool regen_braking_prev = false;
 bool steering_disengage;
@@ -344,7 +345,7 @@ static void generic_rx_checks(void) {
   gas_pressed_prev = gas_pressed;
 
   // exit controls on rising edge of brake press
-  if (brake_pressed && (!brake_pressed_prev || vehicle_moving)) {
+  if (brake_disengage && brake_pressed && (!brake_pressed_prev || vehicle_moving)) {
     controls_allowed = false;
   }
   brake_pressed_prev = brake_pressed;
@@ -423,6 +424,7 @@ int set_safety_hooks(uint16_t mode, uint16_t param) {
   gas_pressed_prev = false;
   brake_pressed = false;
   brake_pressed_prev = false;
+  brake_disengage = true;
   regen_braking = false;
   regen_braking_prev = false;
   steering_disengage = false;

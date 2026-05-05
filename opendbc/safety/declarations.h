@@ -253,6 +253,7 @@ extern bool gas_pressed;
 extern bool gas_pressed_prev;
 extern bool brake_pressed;
 extern bool brake_pressed_prev;
+extern bool brake_disengage;
 extern bool regen_braking;
 extern bool regen_braking_prev;
 extern bool steering_disengage;
