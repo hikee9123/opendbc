@@ -112,7 +112,7 @@ class CarStateCustom:
     try:
       m_jsonobj = read_json_file("CustomParam")
       autoLaneChange = int(m_jsonobj.get("ParamAutoLaneChange", 0))
-      menu_debug = int(m_jsonobj.get("ParamDebug", 0))
+      menu_debug = int(m_jsonobj.get("ShowDebugMessage", m_jsonobj.get("ParamDebug", 0)))
       curveSpeedLimit = float(m_jsonobj.get("ParamCurveSpeedLimit", 40))
       autoEngage = int(m_jsonobj.get("ParamAutoEngage", 0))
       return autoLaneChange, menu_debug, curveSpeedLimit, autoEngage
