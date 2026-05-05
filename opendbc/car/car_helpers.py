@@ -160,7 +160,11 @@ def get_car(can_recv: CanRecvCallable, can_send: CanSendCallable, set_obd_multip
     # #custom start: allow manual car selection from UI
     selected_car = Params().get("SelectedCar")
     if selected_car:
-      candidate = selected_car.decode("utf-8")
+      selected_candidate = selected_car.decode("utf-8")
+      if selected_candidate in interfaces:
+        candidate = selected_candidate
+      else:
+        carlog.error({"event": "invalid manual car selection", "selected_car": selected_candidate})
     # #custom end
 
   CarInterface = interfaces[candidate]
