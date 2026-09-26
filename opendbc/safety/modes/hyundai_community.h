@@ -50,6 +50,9 @@ const LongitudinalLimits HYUNDAI_COMMUNITY_LONG_LIMITS = {
 #define HYUNDAI_COMMUNITY_SCC12_ADDR_CHECK(scc_bus)                                                                            \
   {.msg = {{0x421, (scc_bus), 8, 50U, .max_counter = 15U, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
 
+#define HYUNDAI_COMMUNITY_SCC11_ADDR_CHECK(scc_bus) \
+  {.msg = {{0x420, (scc_bus), 8, 50U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
+
 #define HYUNDAI_COMMUNITY_FCEV_GAS_ADDR_CHECK \
   {.msg = {{0x91,  0, 8, 100U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
 
@@ -59,8 +62,17 @@ static const CanMsg HYUNDAI_COMMUNITY_TX_MSGS[] = {
 
 #define HYUNDAI_COMMUNITY_SCC12_TIMEOUT 100000U
 
+// Start in stock passthrough until SCC11 confirms ACC main is on.
+static bool hyundai_stock_passthrough = true;
 static bool hyundai_community_scc12_seen = false;
 static uint32_t hyundai_community_scc12_ts = 0U;
+
+static bool hyundai_community_is_generated_msg(const CANPacket_t *msg) {
+  return (msg->addr == 0x340U) || (msg->addr == 0x4F1U) || (msg->addr == 0x485U) ||
+         (msg->addr == 0x251U) || (msg->addr == 0x420U) || (msg->addr == 0x421U) ||
+         (msg->addr == 0x50AU) || (msg->addr == 0x389U) || (msg->addr == 0x4A2U) ||
+         (msg->addr == 0x38DU) || (msg->addr == 0x483U) || (msg->addr == 0x7D0U);
+}
 
 
 
@@ -133,6 +145,13 @@ static uint32_t hyundai_community_compute_checksum(const CANPacket_t *msg) {
 }
 
 static void hyundai_community_rx_hook(const CANPacket_t *msg) {
+
+  const bool scc11_bus = ((msg->bus == 0U) && !hyundai_camera_scc) || ((msg->bus == 2U) && hyundai_camera_scc);
+  if ((msg->addr == 0x420U) && (GET_LEN(msg) == 8U) && scc11_bus && !hyundai_longitudinal) {
+    const bool acc_main_on = (GET_BYTES(msg, 0, 4) & 0x1U) != 0U;
+    hyundai_stock_passthrough = !acc_main_on;
+    hyundai_common_cruise_state_check(acc_main_on);
+  }
 
   const bool scc12_bus = ((msg->bus == 0U) && !hyundai_camera_scc) || ((msg->bus == 2U) && hyundai_camera_scc);
   if ((msg->addr == 0x421U) && (GET_LEN(msg) == 8U) && scc12_bus) {
@@ -223,6 +242,10 @@ static bool hyundai_community_tx_hook(const CANPacket_t *msg) {
     return false;
   }
 
+  if (hyundai_stock_passthrough && hyundai_community_is_generated_msg(msg)) {
+    return false;
+  }
+
   // FCA11: Block any potential actuation
   if (msg->addr == 0x38DU) {
     int CR_VSM_DecCmd = msg->data[1];
@@ -308,6 +331,7 @@ static safety_config hyundai_community_init(uint16_t param) {
 
   hyundai_common_init(param);
   brake_disengage = hyundai_longitudinal;
+  hyundai_stock_passthrough = !hyundai_longitudinal;
   hyundai_community_scc12_seen = false;
   hyundai_community_scc12_ts = 0U;
 
@@ -338,6 +362,7 @@ static safety_config hyundai_community_init(uint16_t param) {
   } else if (hyundai_camera_scc) {
     static RxCheck hyundai_community_cam_scc_rx_checks[] = {
       HYUNDAI_COMMUNITY_COMMON_RX_CHECKS(false)
+      HYUNDAI_COMMUNITY_SCC11_ADDR_CHECK(2)
       HYUNDAI_COMMUNITY_SCC12_ADDR_CHECK(2)
     };
 
@@ -345,11 +370,13 @@ static safety_config hyundai_community_init(uint16_t param) {
   } else {
     static RxCheck hyundai_community_rx_checks[] = {
        HYUNDAI_COMMUNITY_COMMON_RX_CHECKS(false)
+       HYUNDAI_COMMUNITY_SCC11_ADDR_CHECK(0)
        HYUNDAI_COMMUNITY_SCC12_ADDR_CHECK(0)
     };
 
     static RxCheck hyundai_community_fcev_rx_checks[] = {
       HYUNDAI_COMMUNITY_COMMON_RX_CHECKS(false)
+      HYUNDAI_COMMUNITY_SCC11_ADDR_CHECK(0)
       HYUNDAI_COMMUNITY_SCC12_ADDR_CHECK(0)
       HYUNDAI_COMMUNITY_FCEV_GAS_ADDR_CHECK
     };
@@ -367,6 +394,10 @@ static safety_config hyundai_community_init(uint16_t param) {
 
 static bool hyundai_community_fwd_hook(int bus_num, int addr) {
   bool blocked = true;
+
+  if (hyundai_stock_passthrough) {
+    return false;
+  }
 
 
   // forward cam to ccan and viceversa, except lkas cmd
