@@ -54,6 +54,7 @@ class CarController(CarControllerBase):
     super().__init__(dbc_names, CP)
     self.CAN = CanBus(CP)
     self.params = CarControllerParams(CP)
+    self.hyundai_community = CP.safetyConfigs[-1].safetyModel == structs.CarParams.SafetyModel.hyundaiCommunity
     self.packer = CANPacker(dbc_names[Bus.pt])
     self.angle_limit_counter = 0
 
@@ -169,8 +170,9 @@ class CarController(CarControllerBase):
                                                       hud_control, set_speed_in_units, stopping,
                                                       CC.cruiseControl.override, use_fca, self.CP))
 
-    # 20 Hz LFA MFA message
-    if self.frame % 5 == 0 and self.CP.flags & HyundaiFlags.SEND_LFA.value:
+    # Community safety forwards the stock camera LFA/HDA message and transforms
+    # only its wheel-icon bit. Keep the legacy generated message for other modes.
+    if self.frame % 5 == 0 and self.CP.flags & HyundaiFlags.SEND_LFA.value and not self.hyundai_community:
       can_sends.append(hyundaican.create_lfahda_mfc(self.packer, CC.enabled))
 
     # 5 Hz ACC options

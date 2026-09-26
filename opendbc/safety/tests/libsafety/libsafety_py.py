@@ -58,9 +58,11 @@ ffi.cdef("""
 bool safety_rx_hook(CANPacket_t *msg);
 bool safety_tx_hook(CANPacket_t *msg);
 int safety_fwd_hook(int bus_num, int addr);
+void safety_fwd_transform(CANPacket_t *msg, int destination_bus);
 int set_safety_hooks(uint16_t mode, uint16_t param);
 
 void set_controls_allowed(bool c);
+void set_heartbeat_engaged(bool engaged);
 bool get_controls_allowed(void);
 bool get_longitudinal_allowed(void);
 void set_alternative_experience(int mode);

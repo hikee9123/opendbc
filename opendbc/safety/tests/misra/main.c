@@ -10,5 +10,6 @@ SAFETY_UNUSED(heartbeat_engaged);
 SAFETY_UNUSED(safety_rx_hook);
 SAFETY_UNUSED(safety_tx_hook);
 SAFETY_UNUSED(safety_fwd_hook);
+SAFETY_UNUSED(safety_fwd_transform);
 SAFETY_UNUSED(safety_tick);
 SAFETY_UNUSED(set_safety_hooks);

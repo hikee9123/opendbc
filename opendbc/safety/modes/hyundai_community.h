@@ -28,7 +28,7 @@ const LongitudinalLimits HYUNDAI_COMMUNITY_LONG_LIMITS = {
 #define HYUNDAI_COMMUNITY_COMMON_TX_MSGS(scc_bus) \
   {0x340, 0,       8, .check_relay = true},   /* LKAS11 Bus 0                              */ \
   {0x4F1, scc_bus, 4, .check_relay = false},  /* CLU11 Bus 0 (radar-SCC) or 2 (camera-SCC) */ \
-  {0x485, 0,       4, .check_relay = true},   /* LFAHDA_MFC Bus 0                          */ \
+  {0x485, 0,       4, .check_relay = true, .disable_static_blocking = true}, /* stock LFAHDA_MFC */ \
   {0x251, 2,       8, .check_relay = false},  // MDPS12, Bus 2
 
 #define HYUNDAI_COMMUNITY_LONG_COMMON_TX_MSGS(scc_bus) \
@@ -56,6 +56,11 @@ const LongitudinalLimits HYUNDAI_COMMUNITY_LONG_LIMITS = {
 static const CanMsg HYUNDAI_COMMUNITY_TX_MSGS[] = {
   HYUNDAI_COMMUNITY_COMMON_TX_MSGS(0)
 };
+
+#define HYUNDAI_COMMUNITY_SCC12_TIMEOUT 100000U
+
+static bool hyundai_community_scc12_seen = false;
+static uint32_t hyundai_community_scc12_ts = 0U;
 
 
 
@@ -128,6 +133,12 @@ static uint32_t hyundai_community_compute_checksum(const CANPacket_t *msg) {
 }
 
 static void hyundai_community_rx_hook(const CANPacket_t *msg) {
+
+  const bool scc12_bus = ((msg->bus == 0U) && !hyundai_camera_scc) || ((msg->bus == 2U) && hyundai_camera_scc);
+  if ((msg->addr == 0x421U) && (GET_LEN(msg) == 8U) && scc12_bus) {
+    hyundai_community_scc12_ts = microsecond_timer_get();
+    hyundai_community_scc12_seen = true;
+  }
 
   if( hyundai_longitudinal )
   {
@@ -205,6 +216,12 @@ static bool hyundai_community_tx_hook(const CANPacket_t *msg) {
   const TorqueSteeringLimits HYUNDAI_COMMUNITY_STEERING_LIMITS_ALT_2 = HYUNDAI_COMMUNITY_LIMITS(170, 2, 3);
 
   bool tx = true;
+
+  // LFAHDA_MFC is vehicle-originated and forwarded from the camera bus.
+  // Never transmit a host-generated replacement.
+  if (msg->addr == 0x485U) {
+    return false;
+  }
 
   // FCA11: Block any potential actuation
   if (msg->addr == 0x38DU) {
@@ -291,6 +308,8 @@ static safety_config hyundai_community_init(uint16_t param) {
 
   hyundai_common_init(param);
   brake_disengage = hyundai_longitudinal;
+  hyundai_community_scc12_seen = false;
+  hyundai_community_scc12_ts = 0U;
 
 
   safety_config ret;
@@ -356,11 +375,23 @@ static bool hyundai_community_fwd_hook(int bus_num, int addr) {
         blocked = false;
     }
   }
-  if ((bus_num == 2) && (addr != 0x340) && (addr != 0x485)) {
+  if ((bus_num == 2) && (addr != 0x340)) {
     blocked = false;
   }
 
   return blocked;
+}
+
+static void hyundai_community_fwd_transform(CANPacket_t *msg, int destination_bus) {
+  const bool stock_lfahda = (msg->bus == 2U) && (destination_bus == 0) &&
+                            (msg->addr == 0x485U) && (GET_LEN(msg) == 4U);
+  const bool scc12_fresh = hyundai_community_scc12_seen &&
+                           (safety_get_ts_elapsed(microsecond_timer_get(), hyundai_community_scc12_ts) < HYUNDAI_COMMUNITY_SCC12_TIMEOUT);
+
+  if (stock_lfahda && !hyundai_longitudinal && heartbeat_engaged && scc12_fresh) {
+    // Preserve stock HDA active/icon state; change only the wheel-engagement bit.
+    msg->data[2] |= 0x10U;
+  }
 }
 
 
@@ -369,6 +400,7 @@ const safety_hooks hyundai_community_hooks = {
   .rx = hyundai_community_rx_hook,
   .tx = hyundai_community_tx_hook,
   .fwd = hyundai_community_fwd_hook,
+  .fwd_transform = hyundai_community_fwd_transform,
   .get_counter = hyundai_community_get_counter,
   .get_checksum = hyundai_community_get_checksum,
   .compute_checksum = hyundai_community_compute_checksum,
