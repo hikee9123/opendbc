@@ -193,6 +193,7 @@ typedef struct {
 typedef struct {
   const CanMsgCheck msg[MAX_ADDR_CHECK_MSGS];  // check either messages (e.g. honda steer)
   RxStatus status;
+  bool optional;                       // absence does not invalidate RX health or controls
 } RxCheck;
 
 typedef struct {

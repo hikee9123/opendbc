@@ -331,13 +331,13 @@ void safety_tick(const safety_config *cfg) {
       uint32_t timestep = 1e6 / frequency;
       bool lagging = elapsed_time > SAFETY_MAX(timestep * MAX_MISSED_MSGS, 1e6);
       cfg->rx_checks[i].status.lagging = lagging;
-      if (lagging) {
+      if (lagging && !cfg->rx_checks[i].optional) {
         controls_allowed = false;
       }
 
       // enforce minimum frequency for safety-relevant messages
       bool frequency_invalid = frequency < 10U;
-      if (lagging || frequency_invalid || !is_msg_valid(cfg->rx_checks, i)) {
+      if (!cfg->rx_checks[i].optional && (lagging || frequency_invalid || !is_msg_valid(cfg->rx_checks, i))) {
         rx_checks_invalid = true;
         controls_allowed = false;
       }
