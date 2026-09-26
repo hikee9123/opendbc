@@ -18,7 +18,7 @@ class CarControllerCustom:
     #custom
     btn_signal = self.NC.update( CC, CS, frame )
     if btn_signal != None:
-      can_sends.extend( [hyundaican.create_clu11( packer, self.resume_cnt, CS.clu11, btn_signal, self.CP)] * 2 )
+      can_sends.append( hyundaican.create_clu11( packer, self.resume_cnt, CS.clu11, btn_signal, self.CP) )
       self.resume_cnt += 1
     else:
       self.resume_cnt = 0

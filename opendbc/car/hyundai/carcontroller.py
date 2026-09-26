@@ -154,10 +154,8 @@ class CarController(CarControllerBase):
       elif CC.cruiseControl.resume:
         # send resume at a max freq of 10Hz
         if (self.frame - self.last_button_frame) * DT_CTRL > 0.1:
-          # send 25 messages at a time to increases the likelihood of resume being accepted
-          can_sends.extend([hyundaican.create_clu11(self.packer, self.frame, CS.clu11, Buttons.RES_ACCEL, self.CP)] * 25)
-          if (self.frame - self.last_button_frame) * DT_CTRL >= 0.15:
-            self.last_button_frame = self.frame
+          can_sends.append(hyundaican.create_clu11(self.packer, self.frame, CS.clu11, Buttons.RES_ACCEL, self.CP))
+          self.last_button_frame = self.frame
       # #custom start: Hyundai community cruise button helper
       elif CS.out.cruiseState.available:
         self.customCC.create_button_messages(self.packer, can_sends, CC, CS, self.frame)
