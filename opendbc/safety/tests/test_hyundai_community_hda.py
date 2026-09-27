@@ -16,6 +16,11 @@ class TestHyundaiCommunityHdaTransform(unittest.TestCase):
     self.safety.set_safety_hooks(CarParams.SafetyModel.hyundaiCommunity, 0)
     self.safety.init_tests()
     self.scc12_counter = 0
+    self.safety.safety_rx_hook(self._scc11_msg(main_on=True))
+
+  @staticmethod
+  def _scc11_msg(main_on, bus=0):
+    return make_msg(bus, 0x420, 8, bytes([int(main_on), 0, 0, 0, 0, 0, 0, 0]))
 
   def _scc12_msg(self, bus=0):
     values = {"ACCMode": 1, "CR_VSM_Alive": self.scc12_counter % 16}
@@ -77,6 +82,16 @@ class TestHyundaiCommunityHdaTransform(unittest.TestCase):
     self.safety.safety_fwd_transform(msg, 0)
     self.assertEqual(original, self._payload(msg))
 
+    # ACC main off keeps stock HDA frames byte-for-byte unchanged.
+    self.safety.safety_rx_hook(self._scc11_msg(main_on=False))
+    self.safety.set_heartbeat_engaged(True)
+    self._set_fresh_scc12()
+    msg = self._lfahda_msg()
+    original = self._payload(msg)
+    self.safety.safety_fwd_transform(msg, 0)
+    self.assertEqual(original, self._payload(msg))
+
+    self.safety.safety_rx_hook(self._scc11_msg(main_on=True))
     self._set_fresh_scc12()
     msg = self._lfahda_msg()
     self.safety.safety_fwd_transform(msg, 0)
@@ -103,6 +118,7 @@ class TestHyundaiCommunityHdaTransform(unittest.TestCase):
   def test_camera_scc_uses_bus_two_scc12(self):
     self.safety.set_safety_hooks(CarParams.SafetyModel.hyundaiCommunity, HyundaiSafetyFlags.CAMERA_SCC)
     self.safety.init_tests()
+    self.safety.safety_rx_hook(self._scc11_msg(main_on=True, bus=2))
     self.safety.set_heartbeat_engaged(True)
     self._set_fresh_scc12(bus=2)
 

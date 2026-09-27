@@ -26,7 +26,7 @@ const LongitudinalLimits HYUNDAI_COMMUNITY_LONG_LIMITS = {
 };
 
 #define HYUNDAI_COMMUNITY_COMMON_TX_MSGS(scc_bus) \
-  {0x340, 0,       8, .check_relay = true},   /* LKAS11 Bus 0                              */ \
+  {0x340, 0,       8, .check_relay = true, .disable_static_blocking = true}, /* LKAS11 Bus 0 */ \
   {0x4F1, scc_bus, 4, .check_relay = false},  /* CLU11 Bus 0 (radar-SCC) or 2 (camera-SCC) */ \
   {0x485, 0,       4, .check_relay = true, .disable_static_blocking = true}, /* stock LFAHDA_MFC */ \
   {0x251, 2,       8, .check_relay = false},  // MDPS12, Bus 2
@@ -404,6 +404,10 @@ static safety_config hyundai_community_init(uint16_t param) {
 
 
 static bool hyundai_community_fwd_hook(int bus_num, int addr) {
+  if (hyundai_community_stock_passthrough()) {
+    return false;
+  }
+
   bool blocked = true;
 
   // forward cam to ccan and viceversa, except lkas cmd
@@ -420,6 +424,10 @@ static bool hyundai_community_fwd_hook(int bus_num, int addr) {
 }
 
 static void hyundai_community_fwd_transform(CANPacket_t *msg, int destination_bus) {
+  if (hyundai_community_stock_passthrough()) {
+    return;
+  }
+
   const bool stock_lfahda = (msg->bus == 2U) && (destination_bus == 0) &&
                             (msg->addr == 0x485U) && (GET_LEN(msg) == 4U);
   const bool scc12_fresh = hyundai_community_scc12_seen &&

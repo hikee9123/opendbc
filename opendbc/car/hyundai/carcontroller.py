@@ -133,6 +133,12 @@ class CarController(CarControllerBase):
   def create_can_msgs(self, apply_steer_req, apply_torque, torque_fault, set_speed_in_units, accel, stopping, hud_control, actuators, CS, CC):
     can_sends = []
 
+    # With ACC main off, leave the stock CAN path untouched. Panda forwards the
+    # vehicle's original frames in this state, so openpilot must not create any
+    # classic CAN replacements or button commands.
+    if self.hyundai_community and not self.CP.openpilotLongitudinalControl and not CS.out.cruiseState.available:
+      return can_sends
+
     # HUD messages
     sys_warning, sys_state, left_lane_warning, right_lane_warning = process_hud_alert(CC.enabled, self.car_fingerprint,
                                                                                       hud_control)

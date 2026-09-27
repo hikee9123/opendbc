@@ -24,17 +24,19 @@ class TestHyundaiCommunityAccMainState(unittest.TestCase):
     return CANPackerSafety("hyundai_kia_generic").make_can_msg_safety(
       "LKAS11", 0, {"CR_Lkas_StrToqReq": 0, "CF_Lkas_ActToi": 0})
 
-  def test_initial_and_main_off_state_blocks_host_commands_but_forwards_stock(self):
+  def test_initial_and_main_off_state_blocks_host_commands_and_forwards_stock(self):
     self.safety.set_controls_allowed(True)
 
     # Until an ACC-main-on frame is received, remain fail-safe in stock passthrough.
     self.assertFalse(self.safety.safety_tx_hook(self._lkas11()))
-    self.assertEqual(-1, self.safety.safety_fwd_hook(0, 0x251))
+    self.assertEqual(2, self.safety.safety_fwd_hook(0, 0x251))
+    self.assertEqual(0, self.safety.safety_fwd_hook(2, 0x340))
 
     self.assertTrue(self.safety.safety_rx_hook(self._scc11(main_on=False)))
     self.assertFalse(self.safety.get_controls_allowed())
     self.assertFalse(self.safety.safety_tx_hook(self._lkas11()))
-    self.assertEqual(-1, self.safety.safety_fwd_hook(0, 0x251))
+    self.assertEqual(2, self.safety.safety_fwd_hook(0, 0x251))
+    self.assertEqual(0, self.safety.safety_fwd_hook(2, 0x340))
 
   def test_main_on_reenables_host_tx(self):
     self.assertTrue(self.safety.safety_rx_hook(self._scc11(main_on=True)))
@@ -71,15 +73,15 @@ class TestHyundaiCommunityAccMainState(unittest.TestCase):
     self.safety.safety_tick_current_safety_config()
     self.assertTrue(self.safety.safety_config_valid())
 
-  def test_stale_scc11_fails_closed_without_bypassing_forward_filters(self):
+  def test_stale_scc11_fails_closed_and_restores_stock_forwarding(self):
     self.safety.set_timer(1_000)
     self.assertTrue(self.safety.safety_rx_hook(self._scc11(main_on=True)))
     self.safety.set_controls_allowed(True)
-    self.assertEqual(-1, self.safety.safety_fwd_hook(0, 0x251))
+    self.assertEqual(2, self.safety.safety_fwd_hook(0, 0x251))
 
     self.safety.set_timer(1_000_001)
     self.assertFalse(self.safety.safety_tx_hook(self._lkas11()))
-    self.assertEqual(-1, self.safety.safety_fwd_hook(0, 0x251))
+    self.assertEqual(2, self.safety.safety_fwd_hook(0, 0x251))
 
 
 if __name__ == "__main__":
