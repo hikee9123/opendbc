@@ -12,6 +12,7 @@ class TestButtonMessages(unittest.TestCase):
   def test_resume_queues_one_clu11_frame(self):
     controller = CarController.__new__(CarController)
     controller.CP = SimpleNamespace(openpilotLongitudinalControl=False, flags=0)
+    controller.hyundai_community = True
     controller.car_fingerprint = "test"
     controller.frame = 20
     controller.last_button_frame = 0
@@ -23,7 +24,8 @@ class TestButtonMessages(unittest.TestCase):
                           leftLaneDepart=False, rightLaneDepart=False)
     control = SimpleNamespace(enabled=False, hudControl=hud,
                                cruiseControl=SimpleNamespace(cancel=False, resume=True))
-    car_state = SimpleNamespace(lkas11={}, clu11={}, customCS=SimpleNamespace(mdps12={}))
+    car_state = SimpleNamespace(lkas11={}, clu11={}, customCS=SimpleNamespace(mdps12={}),
+                                out=SimpleNamespace(cruiseState=SimpleNamespace(available=True)))
 
     with patch.object(hyundaican, "create_lkas11", return_value=("LKAS11",)), \
          patch.object(hyundaican, "create_mdps12", return_value=("MDPS12",)), \
@@ -34,6 +36,16 @@ class TestButtonMessages(unittest.TestCase):
 
     self.assertEqual(messages.count(("CLU11",)), 1)
     self.assertEqual(next_frame_messages.count(("CLU11",)), 0)
+
+  def test_community_acc_main_off_emits_no_can_messages(self):
+    controller = CarController.__new__(CarController)
+    controller.CP = SimpleNamespace(openpilotLongitudinalControl=False)
+    controller.hyundai_community = True
+    car_state = SimpleNamespace(out=SimpleNamespace(cruiseState=SimpleNamespace(available=False)))
+
+    messages = controller.create_can_msgs(False, 0, False, 0, 0, False, None, None, car_state, None)
+
+    self.assertEqual(messages, [])
 
   def test_community_button_queues_one_clu11_frame(self):
     controller = CarControllerCustom(None)

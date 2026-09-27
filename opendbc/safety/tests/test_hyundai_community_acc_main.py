@@ -77,11 +77,13 @@ class TestHyundaiCommunityAccMainState(unittest.TestCase):
     self.safety.set_timer(1_000)
     self.assertTrue(self.safety.safety_rx_hook(self._scc11(main_on=True)))
     self.safety.set_controls_allowed(True)
-    self.assertEqual(2, self.safety.safety_fwd_hook(0, 0x251))
+    self.assertEqual(-1, self.safety.safety_fwd_hook(0, 0x251))
+    self.assertEqual(-1, self.safety.safety_fwd_hook(2, 0x340))
 
-    self.safety.set_timer(1_000_001)
+    self.safety.set_timer(1_001_001)
     self.assertFalse(self.safety.safety_tx_hook(self._lkas11()))
     self.assertEqual(2, self.safety.safety_fwd_hook(0, 0x251))
+    self.assertEqual(0, self.safety.safety_fwd_hook(2, 0x340))
 
 
 if __name__ == "__main__":
